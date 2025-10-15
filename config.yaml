@@ -1,0 +1,23 @@
+# ------------------ Data ------------------
+data:
+  images_dir: E:/Mini projects/img_cap/dataset/Images
+  captions_file: E:/Mini projects/img_cap/dataset/captions.csv
+
+# ------------------ Training ------------------
+training:
+  batch_size: 8
+  epochs: 8
+  lr: 0.0001
+  save_path: ./checkpoints     # folder to save model checkpoints
+
+# ------------------ Model ------------------
+model:
+  embed_size: 256              # embedding dimension for image & words
+  hidden_size: 512             # LSTM hidden size
+  attention_dim: 256           # for attention models (optional, not used here)
+  num_layers: 1
+  dropout: 0.5
+
+# ------------------ Device ------------------
+device: cpu                    # use 'cpu' if GPU not available
+seed: 42
