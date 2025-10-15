@@ -5,7 +5,7 @@ from torchvision import transforms
 import yaml
 import os
 from model import EncoderCNN, DecoderRNN
-import requests
+import gdown
 
 # ------------------ PAGE CONFIG ------------------
 st.set_page_config(page_title="AI Image Captioning", layout="wide", initial_sidebar_state="expanded")
@@ -41,54 +41,74 @@ transform = transforms.Compose([
 ])
 
 # ------------------ DOWNLOAD CHECKPOINT FROM GOOGLE DRIVE ------------------
-def download_from_gdrive(file_id, dest_path):
-    URL = f"https://drive.google.com/uc?export=download&id={file_id}"
-    session = requests.Session()
-    response = session.get(URL, stream=True)
-    token = None
-    for key, value in response.cookies.items():
-        if key.startswith('download_warning'):
-            token = value
-    if token:
-        response = session.get(URL, params={'confirm': token}, stream=True)
-    with open(dest_path, 'wb') as f:
-        for chunk in response.iter_content(32768):
-            if chunk:
-                f.write(chunk)
-
-import gdown
-
 MODEL_PATH = "checkpoint_epoch8.pth"
 FILE_ID = "1EtBH6Z3aedXYrcbR_iXAStMj7Bojvrj1"
-URL = f"https://drive.google.com/uc?id={FILE_ID}"
 
 if not os.path.exists(MODEL_PATH):
-    with st.spinner("Downloading model from Google Drive..."):
-        gdown.download(URL, MODEL_PATH, quiet=False)
+    with st.spinner("📥 Downloading model from Google Drive..."):
+        try:
+            # Use fuzzy=True for large files that might trigger virus scan
+            gdown.download(id=FILE_ID, output=MODEL_PATH, quiet=False, fuzzy=True)
+            
+            # Verify the file was downloaded and check size
+            if os.path.exists(MODEL_PATH):
+                file_size = os.path.getsize(MODEL_PATH)
+                st.success(f"✅ Model downloaded successfully! File size: {file_size / (1024**2):.2f} MB")
+            else:
+                st.error("❌ Download completed but file not found!")
+                st.stop()
+                
+        except Exception as e:
+            st.error(f"❌ Download failed: {type(e).__name__}")
+            st.error(f"Error details: {str(e)}")
+            st.info("💡 Please check: 1) Google Drive file permissions 2) File ID is correct 3) Internet connection")
+            st.stop()
+else:
+    file_size = os.path.getsize(MODEL_PATH)
+    st.info(f"ℹ️ Using cached model ({file_size / (1024**2):.2f} MB)")
 
+# ------------------ LOAD CHECKPOINT ------------------
+try:
+    checkpoint = torch.load(MODEL_PATH, map_location=device)
+    st.success("✅ Model loaded successfully!")
+except Exception as e:
+    st.error(f"❌ Failed to load checkpoint: {type(e).__name__}")
+    st.error(f"Error details: {str(e)}")
+    st.info("""
+    💡 Possible solutions:
+    - Ensure you're using Python 3.11 (create `.python-version` file with `3.11`)
+    - The checkpoint file might be corrupted, try deleting and re-downloading
+    - Check if the file was saved with a compatible PyTorch version
+    """)
+    st.stop()
 
-
-
-checkpoint = torch.load(MODEL_PATH, map_location=device)
-
+# Extract vocab and create mappings
 vocab_word2idx = checkpoint['vocab']
 idx2word = {idx: word for word, idx in vocab_word2idx.items()}
 vocab_size = len(vocab_word2idx)
 
 # ------------------ MODEL ------------------
-encoder = EncoderCNN(embed_size=config['model']['embed_size']).to(device)
-decoder = DecoderRNN(
-    embed_size=config['model']['embed_size'],
-    hidden_size=config['model']['hidden_size'],
-    vocab_size=vocab_size,
-    num_layers=config['model'].get('num_layers', 1),
-    dropout=config['model'].get('dropout', 0)
-).to(device)
+try:
+    encoder = EncoderCNN(embed_size=config['model']['embed_size']).to(device)
+    decoder = DecoderRNN(
+        embed_size=config['model']['embed_size'],
+        hidden_size=config['model']['hidden_size'],
+        vocab_size=vocab_size,
+        num_layers=config['model'].get('num_layers', 1),
+        dropout=config['model'].get('dropout', 0)
+    ).to(device)
 
-encoder.load_state_dict(checkpoint['encoder'])
-decoder.load_state_dict(checkpoint['decoder'])
-encoder.eval()
-decoder.eval()
+    encoder.load_state_dict(checkpoint['encoder'])
+    decoder.load_state_dict(checkpoint['decoder'])
+    encoder.eval()
+    decoder.eval()
+    
+    st.success("✅ Model architecture initialized!")
+    
+except Exception as e:
+    st.error(f"❌ Failed to initialize model: {type(e).__name__}")
+    st.error(f"Error details: {str(e)}")
+    st.stop()
 
 # ------------------ CAPTION FUNCTION ------------------
 def generate_caption(image: Image.Image, max_len=20):
@@ -146,21 +166,25 @@ if uploaded_file is not None:
         
         if st.sidebar.button("🚀 Generate Caption"):
             with st.spinner("🤖 AI is analyzing your image..."):
-                caption = generate_caption(image)
-            
-            st.markdown(
-                f"""
-                <div style='
-                    background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,240,255,0.95) 100%);
-                    border: none; padding: 30px; border-radius: 15px;
-                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3); margin-top: 20px;
-                '>
-                    <h4 style='color: #667eea; margin-bottom: 15px; font-weight: 600;'>📝 Caption Result:</h4>
-                    <p style=' font-size: 20px; color: #2d3748; line-height: 1.6; font-weight: 500; font-style: italic;'>" {caption} "</p>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+                try:
+                    caption = generate_caption(image)
+                    
+                    st.markdown(
+                        f"""
+                        <div style='
+                            background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,240,255,0.95) 100%);
+                            border: none; padding: 30px; border-radius: 15px;
+                            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3); margin-top: 20px;
+                        '>
+                            <h4 style='color: #667eea; margin-bottom: 15px; font-weight: 600;'>📝 Caption Result:</h4>
+                            <p style=' font-size: 20px; color: #2d3748; line-height: 1.6; font-weight: 500; font-style: italic;'>" {caption} "</p>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                except Exception as e:
+                    st.error(f"❌ Failed to generate caption: {type(e).__name__}")
+                    st.error(f"Error details: {str(e)}")
         else:
             st.markdown(
                 """
