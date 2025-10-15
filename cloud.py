@@ -56,12 +56,16 @@ def download_from_gdrive(file_id, dest_path):
             if chunk:
                 f.write(chunk)
 
+import gdown
+
 MODEL_PATH = "checkpoint_epoch8.pth"
 FILE_ID = "1EtBH6Z3aedXYrcbR_iXAStMj7Bojvrj1"
+URL = f"https://drive.google.com/uc?id={FILE_ID}"
 
 if not os.path.exists(MODEL_PATH):
     with st.spinner("Downloading model from Google Drive..."):
-        download_from_gdrive(FILE_ID, MODEL_PATH)
+        gdown.download(URL, MODEL_PATH, quiet=False)
+
 
 
 

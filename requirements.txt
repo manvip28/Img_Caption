@@ -8,3 +8,4 @@ spacy
 pyyaml
 nltk
 scikit-learn
+gdown
