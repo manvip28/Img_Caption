@@ -65,12 +65,12 @@ if not os.path.exists(MODEL_PATH):
             st.stop()
 else:
     file_size = os.path.getsize(MODEL_PATH)
-    st.info(f"ℹ️ Using cached model ({file_size / (1024**2):.2f} MB)")
+    #st.info(f"ℹ️ Using cached model ({file_size / (1024**2):.2f} MB)")
 
 # ------------------ LOAD CHECKPOINT ------------------
 try:
     checkpoint = torch.load(MODEL_PATH, map_location=device)
-    st.success("✅ Model loaded successfully!")
+    #st.success("✅ Model loaded successfully!")
 except Exception as e:
     st.error(f"❌ Failed to load checkpoint: {type(e).__name__}")
     st.error(f"Error details: {str(e)}")
@@ -103,7 +103,7 @@ try:
     encoder.eval()
     decoder.eval()
     
-    st.success("✅ Model architecture initialized!")
+    #st.success("✅ Model architecture initialized!")
     
 except Exception as e:
     st.error(f"❌ Failed to initialize model: {type(e).__name__}")
